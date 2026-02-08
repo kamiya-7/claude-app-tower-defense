@@ -457,41 +457,41 @@
         name: '速攻型',
         icon: '🏃',
         color: '#ffeb3b',
-        hp: 30,
+        hp: 40,
         speed: 2.5,
-        damage: 10,
-        castleAttack: 3,
-        reward: 15
+        damage: 20,
+        castleAttack: 6,
+        reward: 30
       },
       tank: {
         name: '重装甲',
         icon: '🛡️',
         color: '#607d8b',
-        hp: 150,
+        hp: 200,
         speed: 0.8,
-        damage: 20,
-        castleAttack: 8,
-        reward: 30
+        damage: 40,
+        castleAttack: 16,
+        reward: 60
       },
       swarm: {
         name: '群れ',
         icon: '👥',
         color: '#9c27b0',
-        hp: 20,
+        hp: 25,
         speed: 1.2,
-        damage: 8,
-        castleAttack: 2,
-        reward: 8
+        damage: 16,
+        castleAttack: 4,
+        reward: 16
       },
       ranged: {
         name: '遠距離',
         icon: '🏹',
         color: '#f44336',
-        hp: 40,
+        hp: 50,
         speed: 1.0,
-        damage: 25,
-        castleAttack: 5,
-        reward: 20,
+        damage: 50,
+        castleAttack: 10,
+        reward: 40,
         range: 100
       }
     };
@@ -504,9 +504,9 @@
         color: '#ff6b6b',
         mpCost: 25,
         levels: [
-          { damage: 30, range: 1.5, attackSpeed: 800, cost: 0, hp: 180, maxHp: 180 },
-          { damage: 50, range: 1.8, attackSpeed: 700, cost: 80, hp: 250, maxHp: 250 },
-          { damage: 80, range: 2.0, attackSpeed: 600, cost: 150, hp: 350, maxHp: 350 }
+          { damage: 20, range: 1.5, attackSpeed: 800, cost: 0, hp: 120, maxHp: 120 },
+          { damage: 35, range: 1.8, attackSpeed: 700, cost: 80, hp: 170, maxHp: 170 },
+          { damage: 55, range: 2.0, attackSpeed: 600, cost: 150, hp: 230, maxHp: 230 }
         ],
         effect: 'damage'
       },
@@ -516,9 +516,9 @@
         color: '#4ecdc4',
         mpCost: 40,
         levels: [
-          { damage: 100, range: 2, attackSpeed: 1500, cost: 0, hp: 150, maxHp: 150 },
-          { damage: 180, range: 2.5, attackSpeed: 1300, cost: 100, hp: 220, maxHp: 220 },
-          { damage: 300, range: 3, attackSpeed: 1100, cost: 200, hp: 300, maxHp: 300 }
+          { damage: 65, range: 2, attackSpeed: 1500, cost: 0, hp: 100, maxHp: 100 },
+          { damage: 120, range: 2.5, attackSpeed: 1300, cost: 100, hp: 150, maxHp: 150 },
+          { damage: 200, range: 3, attackSpeed: 1100, cost: 200, hp: 200, maxHp: 200 }
         ],
         effect: 'damage'
       },
@@ -528,9 +528,9 @@
         color: '#95e1d3',
         mpCost: 15,
         levels: [
-          { damage: 0, range: 1.5, attackSpeed: 0, cost: 0, slowAmount: 0.5, hp: 120, maxHp: 120 },
-          { damage: 0, range: 2.0, attackSpeed: 0, cost: 60, slowAmount: 0.3, hp: 180, maxHp: 180 },
-          { damage: 0, range: 2.5, attackSpeed: 0, cost: 120, slowAmount: 0.2, hp: 240, maxHp: 240 }
+          { damage: 0, range: 1.5, attackSpeed: 0, cost: 0, slowAmount: 0.5, hp: 80, maxHp: 80 },
+          { damage: 0, range: 2.0, attackSpeed: 0, cost: 60, slowAmount: 0.3, hp: 120, maxHp: 120 },
+          { damage: 0, range: 2.5, attackSpeed: 0, cost: 120, slowAmount: 0.2, hp: 160, maxHp: 160 }
         ],
         effect: 'slow'
       }
@@ -575,6 +575,7 @@
       playerCastleHp: 200,
       enemyCastleHp: 150,
       towers: [],
+      enemyTowers: [],
       playerUnits: [],
       enemyUnits: [],
       selectedTower: null,
@@ -663,6 +664,17 @@
       ctx.fillStyle = 'rgba(244, 67, 54, 0.1)';
       ctx.fillRect(CELL_SIZE * 6, 0, CELL_SIZE * 4, CANVAS_HEIGHT);
 
+      // グリッド番号を表示（デバッグ用）
+      ctx.fillStyle = '#666';
+      ctx.font = '12px Arial';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'top';
+      for (let x = 0; x < GRID_SIZE; x++) {
+        for (let y = 0; y < GRID_SIZE; y++) {
+          ctx.fillText(`${x},${y}`, x * CELL_SIZE + 5, y * CELL_SIZE + 5);
+        }
+      }
+
       // 味方の城
       const playerCastleX = CELL_SIZE * 1;
       const playerCastleY = CANVAS_HEIGHT / 2;
@@ -699,6 +711,54 @@
     }
 
     // ========================================
+    // 敵タワー自動配置
+    // ========================================
+    function placeEnemyTowers() {
+      game.enemyTowers = [];
+
+      // レベル別のタワー数: Level 1: 1個, Level 2: 1個, Level 3: 2個
+      const towerCounts = [1, 1, 2];
+      const towerCount = towerCounts[Math.min(game.level - 1, towerCounts.length - 1)];
+
+      // 敵タワー配置範囲: gridX 6-7, gridY 0-5 の12マス
+      const enemyGridXRange = [6, 7];
+      const gridYRange = [0, 1, 2, 3, 4, 5];
+
+      // ランダムな位置に配置（重複なし）
+      const placedPositions = new Set();
+      let placedCount = 0;
+
+      while (placedCount < towerCount) {
+        const gridX = enemyGridXRange[Math.floor(Math.random() * enemyGridXRange.length)];
+        const gridY = gridYRange[Math.floor(Math.random() * gridYRange.length)];
+        const posKey = `${gridX},${gridY}`;
+
+        if (!placedPositions.has(posKey)) {
+          placedPositions.add(posKey);
+
+          // タワータイプをランダムに選択（cannon, sniper, slow）
+          const towerTypes = ['cannon', 'sniper', 'slow'];
+          const towerType = towerTypes[Math.floor(Math.random() * towerTypes.length)];
+          const towerDef = TOWER_TYPES[towerType];
+          const levelStats = towerDef.levels[0]; // 敵タワーはレベル1
+
+          game.enemyTowers.push({
+            gridX: gridX,
+            gridY: gridY,
+            type: towerType,
+            level: 0,
+            lastAttackTime: 0,
+            lastAttack: 0,
+            hp: levelStats.hp,
+            maxHp: levelStats.maxHp
+          });
+
+          placedCount++;
+        }
+      }
+    }
+
+    // ========================================
     // タワー描画
     // ========================================
     function drawTowers() {
@@ -725,6 +785,55 @@
             CELL_SIZE - 10
           );
         }
+
+        // タワー本体（HPが0なら半透明）
+        ctx.fillStyle = tower.hp > 0 ? typeDef.color : typeDef.color + '60';
+        ctx.fillRect(x - 30, y - 30, 60, 60);
+
+        ctx.font = '30px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(typeDef.icon, x, y);
+
+        // レベル表示
+        ctx.fillStyle = 'white';
+        ctx.font = 'bold 14px Arial';
+        ctx.fillText(`Lv${tower.level + 1}`, x, y - 45);
+
+        // HP表示
+        const hpBarWidth = 60;
+        ctx.fillStyle = '#333';
+        ctx.fillRect(x - hpBarWidth / 2, y + 35, hpBarWidth, 4);
+        const hpPercent = tower.hp / tower.maxHp;
+        ctx.fillStyle = hpPercent > 0.5 ? '#4caf50' : hpPercent > 0.25 ? '#ff9800' : '#f44336';
+        ctx.fillRect(x - hpBarWidth / 2, y + 35, hpBarWidth * hpPercent, 4);
+
+        // 攻撃エフェクト
+        if (tower.lastAttack && Date.now() - tower.lastAttack < 200) {
+          ctx.strokeStyle = typeDef.color;
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.arc(x, y, level.range * CELL_SIZE * 0.8, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+      });
+    }
+
+    // ========================================
+    // 敵タワー描画
+    // ========================================
+    function drawEnemyTowers() {
+      game.enemyTowers.forEach(tower => {
+        const typeDef = TOWER_TYPES[tower.type];
+        const level = typeDef.levels[tower.level];
+        const x = tower.gridX * CELL_SIZE + CELL_SIZE / 2;
+        const y = tower.gridY * CELL_SIZE + CELL_SIZE / 2;
+
+        // 範囲表示
+        ctx.fillStyle = typeDef.color + '20';
+        ctx.beginPath();
+        ctx.arc(x, y, level.range * CELL_SIZE, 0, Math.PI * 2);
+        ctx.fill();
 
         // タワー本体（HPが0なら半透明）
         ctx.fillStyle = tower.hp > 0 ? typeDef.color : typeDef.color + '60';
@@ -844,6 +953,7 @@
 
       drawGrid();
       drawTowers();
+      drawEnemyTowers();
       drawUnits();
       drawPlacementPreview();
     }
@@ -1027,6 +1137,75 @@
     }
 
     // ========================================
+    // 敵タワー攻撃（プレイヤーユニットを攻撃）
+    // ========================================
+    function enemyTowerAttack() {
+      const now = Date.now();
+
+      game.enemyTowers.forEach(tower => {
+        if (tower.hp <= 0) return; // HPが0なら攻撃しない
+
+        const typeDef = TOWER_TYPES[tower.type];
+        const level = typeDef.levels[tower.level];
+
+        if (typeDef.effect !== 'damage') return;
+        if (tower.lastAttackTime && now - tower.lastAttackTime < level.attackSpeed) return;
+
+        const x = tower.gridX * CELL_SIZE + CELL_SIZE / 2;
+        const y = tower.gridY * CELL_SIZE + CELL_SIZE / 2;
+
+        const playersInRange = game.playerUnits.filter(player => {
+          const dx = player.x - x;
+          const dy = player.y - y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          return dist <= level.range * CELL_SIZE;
+        });
+
+        if (playersInRange.length === 0) return;
+
+        tower.lastAttackTime = now;
+        tower.lastAttack = now;
+
+        if (tower.type === 'cannon') {
+          playersInRange.forEach(player => {
+            player.hp -= level.damage;
+          });
+        } else if (tower.type === 'sniper') {
+          playersInRange[0].hp -= level.damage;
+        }
+      });
+    }
+
+    // ========================================
+    // プレイヤーユニットが敵タワーを攻撃
+    // ========================================
+    function playerAttackEnemyTowers() {
+      const now = Date.now();
+
+      game.playerUnits.forEach(player => {
+        if (player.inCombat || player.attackingCastle) return;
+
+        game.enemyTowers.forEach(tower => {
+          if (tower.hp <= 0) return;
+
+          const towerX = tower.gridX * CELL_SIZE + CELL_SIZE / 2;
+          const towerY = tower.gridY * CELL_SIZE + CELL_SIZE / 2;
+
+          const dx = towerX - player.x;
+          const dy = towerY - player.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+
+          if (dist <= 50) {
+            if (!player.lastTowerAttack || now - player.lastTowerAttack > 1000) {
+              tower.hp -= 5;
+              player.lastTowerAttack = now;
+            }
+          }
+        });
+      });
+    }
+
+    // ========================================
     // ラッシュモード管理
     // ========================================
     function manageRushMode(deltaTime) {
@@ -1036,8 +1215,11 @@
       if (game.rushCheckTimer >= 10000 && !game.rushMode) {
         game.rushCheckTimer = 0;
 
-        // 50%の確率でラッシュモード発動
-        if (Math.random() < 0.5) {
+        // レベル別の発生確率でラッシュモード発動
+        const rushProbabilities = [0.4, 0.45, 0.5]; // Level 1: 40%, Level 2: 45%, Level 3: 50%
+        const probability = rushProbabilities[Math.min(game.level - 1, rushProbabilities.length - 1)];
+
+        if (Math.random() < probability) {
           game.rushMode = true;
           game.rushDuration = 0;
           document.getElementById('rush-notification').classList.add('show');
@@ -1201,7 +1383,9 @@
         unitCombat();
         castleAttack();
         towerAttack();
+        enemyTowerAttack();
         enemyAttackTowers();
+        playerAttackEnemyTowers();
         enemySpawn(deltaTimeMs);
         manageRushMode(deltaTimeMs);
       }
@@ -1298,6 +1482,8 @@
       game.enemySpawnTimer = 0;
       game.nextWaveComposition = null;
       game.selectedTowerForUpgrade = null;
+
+      placeEnemyTowers(); // 敵タワーを配置
 
       document.getElementById('modal').classList.remove('show');
       document.getElementById('wave-preview').style.display = 'none';
@@ -1408,6 +1594,7 @@
     // ========================================
     // ゲーム開始
     // ========================================
+    placeEnemyTowers(); // 初期レベルの敵タワーを配置
     updateUI();
     gameLoop();
   </script>
