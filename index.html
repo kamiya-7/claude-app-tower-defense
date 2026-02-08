@@ -762,9 +762,9 @@
       const towerCounts = [1, 2, 2];
       const towerCount = towerCounts[Math.min(game.level - 1, towerCounts.length - 1)];
 
-      // 敵タワー配置範囲: gridX 6-7, gridY 0-5 の12マス
+      // 敵タワー配置範囲: gridX 6-7, gridY 1-4 の8マス
       const enemyGridXRange = [6, 7];
-      const gridYRange = [0, 1, 2, 3, 4, 5];
+      const gridYRange = [1, 2, 3, 4];
 
       // ランダムな位置に配置（重複なし）
       const placedPositions = new Set();
