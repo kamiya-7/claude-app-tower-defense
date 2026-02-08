@@ -397,7 +397,7 @@
               <span>30</span>
             </div>
             <div class="unit-btn-desc">
-              HP: 50 / 攻撃: 15
+              HP: 80 / 攻撃: 15
             </div>
           </button>
 
@@ -407,7 +407,17 @@
               <span>50</span>
             </div>
             <div class="unit-btn-desc">
-              HP: 30 / 攻撃: 30
+              HP: 50 / 攻撃: 30
+            </div>
+          </button>
+
+          <button class="unit-btn" id="sniper-btn">
+            <div class="unit-btn-title">
+              <span>🎯 スナイパー</span>
+              <span>120</span>
+            </div>
+            <div class="unit-btn-desc">
+              HP: 30 / 攻撃: 60 / 射程: 超長距離
             </div>
           </button>
         </div>
@@ -415,6 +425,26 @@
         <button class="start-btn" id="start-btn">
           ⚔️ 戦闘開始
         </button>
+
+        <div class="info-box" style="background: #ffe0e0; border-left-color: #f44336;">
+          <strong style="color: #c62828;">📖 敵キャラクター図鑑</strong><br><br>
+          <div style="margin-bottom: 8px;">
+            <strong>🏃 速攻型</strong><br>
+            <span style="font-size: 11px; color: #666;">HP: 低 / 速度: 超速 / 攻撃: 低</span>
+          </div>
+          <div style="margin-bottom: 8px;">
+            <strong>🛡️ 重装甲</strong><br>
+            <span style="font-size: 11px; color: #666;">HP: 超高 / 速度: 遅 / 攻撃: 高</span>
+          </div>
+          <div style="margin-bottom: 8px;">
+            <strong>👥 群れ</strong><br>
+            <span style="font-size: 11px; color: #666;">HP: 低 / 速度: 中 / 攻撃: 低 / 大量出現</span>
+          </div>
+          <div>
+            <strong>🏹 遠距離</strong><br>
+            <span style="font-size: 11px; color: #666;">HP: 中 / 速度: 中 / 攻撃: 超高 / 射程長</span>
+          </div>
+        </div>
 
         <div class="info-box">
           <strong>目標：</strong>敵の城を破壊<br><br>
@@ -561,6 +591,18 @@
         attackSpeed: 1500,
         cost: 50,
         castleAttack: 10
+      },
+      sniper: {
+        name: 'スナイパー',
+        icon: '🎯',
+        color: '#ff5722',
+        hp: 30,
+        damage: 60,
+        speed: 0.8,
+        range: 720,
+        attackSpeed: 2000,
+        cost: 120,
+        castleAttack: 15
       }
     };
 
@@ -716,8 +758,8 @@
     function placeEnemyTowers() {
       game.enemyTowers = [];
 
-      // レベル別のタワー数: Level 1: 1個, Level 2: 1個, Level 3: 2個
-      const towerCounts = [1, 1, 2];
+      // レベル別のタワー数: Level 1: 1個, Level 2: 2個, Level 3: 2個
+      const towerCounts = [1, 2, 2];
       const towerCount = towerCounts[Math.min(game.level - 1, towerCounts.length - 1)];
 
       // 敵タワー配置範囲: gridX 6-7, gridY 0-5 の12マス
@@ -1261,11 +1303,25 @@
 
         // 次に出撃する敵タイプを決定
         let selectedType = null;
-        for (const [type, count] of Object.entries(game.nextWaveComposition)) {
-          if (count > 0) {
-            selectedType = type;
-            game.nextWaveComposition[type]--;
-            break;
+
+        // ラッシュモード時はランダムに選択
+        if (game.rushMode) {
+          const availableTypes = Object.entries(game.nextWaveComposition)
+            .filter(([type, count]) => count > 0)
+            .map(([type]) => type);
+
+          if (availableTypes.length > 0) {
+            selectedType = availableTypes[Math.floor(Math.random() * availableTypes.length)];
+            game.nextWaveComposition[selectedType]--;
+          }
+        } else {
+          // 通常時は順番に出撃
+          for (const [type, count] of Object.entries(game.nextWaveComposition)) {
+            if (count > 0) {
+              selectedType = type;
+              game.nextWaveComposition[type]--;
+              break;
+            }
           }
         }
 
@@ -1423,8 +1479,10 @@
       const startBtn = document.getElementById('start-btn');
       startBtn.disabled = game.phase !== 'placement';
 
-      document.getElementById('soldier-btn').disabled = game.money < UNIT_TYPES.soldier.cost;
-      document.getElementById('archer-btn').disabled = game.money < UNIT_TYPES.archer.cost;
+      // 兵士ボタンは戦闘フェーズでのみ有効
+      document.getElementById('soldier-btn').disabled = game.phase !== 'battle' || game.money < UNIT_TYPES.soldier.cost;
+      document.getElementById('archer-btn').disabled = game.phase !== 'battle' || game.money < UNIT_TYPES.archer.cost;
+      document.getElementById('sniper-btn').disabled = game.phase !== 'battle' || game.money < UNIT_TYPES.sniper.cost;
 
       updateWavePreview();
     }
@@ -1487,6 +1545,7 @@
 
       document.getElementById('modal').classList.remove('show');
       document.getElementById('wave-preview').style.display = 'none';
+      document.getElementById('unit-section').style.display = 'none'; // 配置フェーズに戻ったら兵士セクションを非表示
       updateUI();
     }
 
@@ -1520,6 +1579,10 @@
 
     document.getElementById('archer-btn').addEventListener('click', () => {
       spawnUnit('archer');
+    });
+
+    document.getElementById('sniper-btn').addEventListener('click', () => {
+      spawnUnit('sniper');
     });
 
     document.getElementById('next-level-btn').addEventListener('click', () => {
