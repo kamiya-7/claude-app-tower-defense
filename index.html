@@ -1,0 +1,1415 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>戦略タワーディフェンス</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: 'Arial', sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    #app {
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      overflow: hidden;
+      max-width: 1500px;
+      width: 100%;
+    }
+    #game-header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 20px 30px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    #game-header h1 {
+      font-size: 24px;
+      font-weight: bold;
+    }
+    .stats {
+      display: flex;
+      gap: 20px;
+      font-size: 16px;
+    }
+    .stat {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .stat-icon {
+      font-size: 20px;
+    }
+    #game-content {
+      display: flex;
+    }
+    #canvas-container {
+      position: relative;
+      flex: 1;
+    }
+    canvas {
+      display: block;
+      background: #2a2a2a;
+      cursor: pointer;
+    }
+    #sidebar {
+      width: 300px;
+      background: #f8f9fa;
+      padding: 20px;
+      border-left: 2px solid #e0e0e0;
+      max-height: 720px;
+      overflow-y: auto;
+    }
+    .phase-indicator {
+      background: #667eea;
+      color: white;
+      padding: 12px;
+      border-radius: 8px;
+      text-align: center;
+      font-weight: bold;
+      margin-bottom: 20px;
+      font-size: 14px;
+    }
+    .phase-indicator.battle {
+      background: #f093fb;
+    }
+    .tower-section h3, .unit-section h3 {
+      font-size: 14px;
+      color: #666;
+      margin-bottom: 12px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .tower-btn, .unit-btn {
+      width: 100%;
+      padding: 16px;
+      margin-bottom: 12px;
+      border: 2px solid #ddd;
+      border-radius: 8px;
+      background: white;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-align: left;
+    }
+    .tower-btn:hover:not(:disabled), .unit-btn:hover:not(:disabled) {
+      border-color: #667eea;
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+      transform: translateY(-2px);
+    }
+    .tower-btn:disabled, .unit-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .tower-btn.selected {
+      border-color: #667eea;
+      background: #f0f4ff;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+    .tower-btn-title, .unit-btn-title {
+      font-weight: bold;
+      font-size: 16px;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .tower-btn-desc, .unit-btn-desc {
+      font-size: 12px;
+      color: #666;
+      line-height: 1.4;
+    }
+    .start-btn {
+      width: 100%;
+      padding: 16px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-top: 20px;
+    }
+    .start-btn:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+    }
+    .start-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .info-box {
+      background: #e3f2fd;
+      border-left: 4px solid #2196f3;
+      padding: 12px;
+      border-radius: 4px;
+      font-size: 13px;
+      line-height: 1.6;
+      color: #1565c0;
+      margin-top: 20px;
+    }
+    #modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.8);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+    #modal.show {
+      display: flex;
+    }
+    #rush-notification {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: linear-gradient(135deg, #ff6b6b 0%, #ff0000 100%);
+      color: white;
+      padding: 30px 60px;
+      border-radius: 20px;
+      font-size: 48px;
+      font-weight: bold;
+      box-shadow: 0 10px 40px rgba(255, 0, 0, 0.5);
+      display: none;
+      z-index: 999;
+      animation: pulse 0.5s infinite alternate;
+    }
+    #rush-notification.show {
+      display: block;
+    }
+    @keyframes pulse {
+      from { transform: translate(-50%, -50%) scale(1); }
+      to { transform: translate(-50%, -50%) scale(1.05); }
+    }
+    .modal-content {
+      background: white;
+      padding: 40px;
+      border-radius: 16px;
+      text-align: center;
+      max-width: 400px;
+    }
+    .modal-content h2 {
+      font-size: 32px;
+      margin-bottom: 16px;
+    }
+    .modal-content.victory h2 {
+      color: #4caf50;
+    }
+    .modal-content.defeat h2 {
+      color: #f44336;
+    }
+    .modal-content p {
+      font-size: 16px;
+      color: #666;
+      margin-bottom: 24px;
+    }
+    .modal-btn {
+      padding: 12px 32px;
+      background: #667eea;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin: 0 8px;
+    }
+    .modal-btn:hover {
+      background: #5568d3;
+      transform: translateY(-2px);
+    }
+    .tower-count {
+      background: #fff3e0;
+      border-left: 4px solid #ff9800;
+      padding: 12px;
+      border-radius: 4px;
+      font-size: 13px;
+      margin-bottom: 20px;
+      color: #e65100;
+      font-weight: bold;
+    }
+    .unit-section {
+      margin-top: 20px;
+      padding-top: 20px;
+      border-top: 2px solid #e0e0e0;
+    }
+    .money-display {
+      background: #fff9c4;
+      border-left: 4px solid #fbc02d;
+      padding: 12px;
+      border-radius: 4px;
+      font-size: 14px;
+      margin-bottom: 20px;
+      color: #f57f17;
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .level-display {
+      background: #e1f5fe;
+      border-left: 4px solid #0288d1;
+      padding: 12px;
+      border-radius: 4px;
+      font-size: 16px;
+      margin-bottom: 20px;
+      color: #01579b;
+      font-weight: bold;
+      text-align: center;
+    }
+    .wave-preview {
+      background: #fff3e0;
+      border-left: 4px solid #f57c00;
+      padding: 12px;
+      border-radius: 4px;
+      margin-bottom: 20px;
+    }
+    .wave-preview-title {
+      font-size: 14px;
+      font-weight: bold;
+      color: #e65100;
+      margin-bottom: 8px;
+    }
+    .wave-preview-content {
+      font-size: 12px;
+      color: #666;
+      line-height: 1.6;
+    }
+    .enemy-type {
+      display: inline-block;
+      margin-right: 8px;
+      padding: 2px 6px;
+      background: rgba(0,0,0,0.05);
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div id="game-header">
+      <h1>🗼 戦略TD</h1>
+      <div class="stats">
+        <div class="stat">
+          <span class="stat-icon">🏰</span>
+          <span id="player-hp">200</span>
+        </div>
+        <div class="stat">
+          <span class="stat-icon">💰</span>
+          <span id="money-header">200</span>
+        </div>
+        <div class="stat">
+          <span class="stat-icon">👹</span>
+          <span id="enemy-hp">150</span>
+        </div>
+      </div>
+    </div>
+
+    <div id="game-content">
+      <div id="canvas-container">
+        <canvas id="canvas" width="1200" height="720"></canvas>
+      </div>
+
+      <div id="sidebar">
+        <div class="level-display">
+          📊 Level <span id="level">1 / 3</span>
+        </div>
+
+        <div class="phase-indicator" id="phase-indicator">
+          配置フェーズ
+        </div>
+
+        <div class="wave-preview" id="wave-preview" style="display: none;">
+          <div class="wave-preview-title">📡 次のWave予告</div>
+          <div class="wave-preview-content" id="wave-preview-content">
+            敵情報を分析中...
+          </div>
+        </div>
+
+        <div class="money-display">
+          💰 所持金: <span id="money">200</span>
+        </div>
+
+        <div class="tower-count">
+          残りMP: <span id="remaining-mp">100</span> / 100
+        </div>
+
+        <div class="tower-section">
+          <h3>タワー配置</h3>
+
+          <button class="tower-btn" data-tower="cannon">
+            <div class="tower-btn-title">
+              <span>💥 大砲</span>
+              <span style="color: #9c27b0;">25MP</span>
+            </div>
+            <div class="tower-btn-desc">
+              範囲攻撃 / 群れに有効<br>
+              攻撃: 30
+            </div>
+          </button>
+
+          <button class="tower-btn" data-tower="sniper">
+            <div class="tower-btn-title">
+              <span>🎯 狙撃</span>
+              <span style="color: #9c27b0;">40MP</span>
+            </div>
+            <div class="tower-btn-desc">
+              単体高火力 / 硬い敵に有効<br>
+              攻撃: 100
+            </div>
+          </button>
+
+          <button class="tower-btn" data-tower="slow">
+            <div class="tower-btn-title">
+              <span>❄️ 減速</span>
+              <span style="color: #9c27b0;">15MP</span>
+            </div>
+            <div class="tower-btn-desc">
+              敵を50%減速 / 速い敵に有効
+            </div>
+          </button>
+        </div>
+
+        <div class="unit-section" id="unit-section" style="display: none;">
+          <h3>兵士出撃</h3>
+
+          <button class="unit-btn" id="soldier-btn">
+            <div class="unit-btn-title">
+              <span>⚔️ 剣士</span>
+              <span>30</span>
+            </div>
+            <div class="unit-btn-desc">
+              HP: 50 / 攻撃: 15
+            </div>
+          </button>
+
+          <button class="unit-btn" id="archer-btn">
+            <div class="unit-btn-title">
+              <span>🏹 弓兵</span>
+              <span>50</span>
+            </div>
+            <div class="unit-btn-desc">
+              HP: 30 / 攻撃: 30
+            </div>
+          </button>
+        </div>
+
+        <button class="start-btn" id="start-btn">
+          ⚔️ 戦闘開始
+        </button>
+
+        <div class="info-box">
+          <strong>目標：</strong>敵の城を破壊<br><br>
+          <strong>Tips：</strong><br>
+          ・タワーをクリックで強化可能<br>
+          ・敵タイプで有効な防御が違う<br>
+          ・次Wave予告を見て準備しよう
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="modal">
+    <div class="modal-content" id="modal-content">
+      <h2 id="modal-title">Victory!</h2>
+      <p id="modal-message">敵の城を破壊しました！</p>
+      <button class="modal-btn" id="next-level-btn">次のレベルへ</button>
+      <button class="modal-btn" onclick="location.reload()">最初から</button>
+    </div>
+  </div>
+
+  <div id="rush-notification">
+    🚨 RUSH TIME! 🚨
+  </div>
+
+  <script>
+    // ========================================
+    // 定数
+    // ========================================
+    const CANVAS_WIDTH = 1200;
+    const CANVAS_HEIGHT = 720;
+    const GRID_SIZE = 10;
+    const CELL_SIZE = CANVAS_WIDTH / GRID_SIZE;
+    const MAX_MP = 100;
+    const START_MONEY = 250;
+
+    // 敵タイプ定義（4種類）
+    const ENEMY_TYPES = {
+      fast: {
+        name: '速攻型',
+        icon: '🏃',
+        color: '#ffeb3b',
+        hp: 30,
+        speed: 2.5,
+        damage: 10,
+        castleAttack: 3,
+        reward: 15
+      },
+      tank: {
+        name: '重装甲',
+        icon: '🛡️',
+        color: '#607d8b',
+        hp: 150,
+        speed: 0.8,
+        damage: 20,
+        castleAttack: 8,
+        reward: 30
+      },
+      swarm: {
+        name: '群れ',
+        icon: '👥',
+        color: '#9c27b0',
+        hp: 20,
+        speed: 1.2,
+        damage: 8,
+        castleAttack: 2,
+        reward: 8
+      },
+      ranged: {
+        name: '遠距離',
+        icon: '🏹',
+        color: '#f44336',
+        hp: 40,
+        speed: 1.0,
+        damage: 25,
+        castleAttack: 5,
+        reward: 20,
+        range: 100
+      }
+    };
+
+    // タワー定義（アップグレード対応）
+    const TOWER_TYPES = {
+      cannon: {
+        name: '大砲',
+        icon: '💥',
+        color: '#ff6b6b',
+        mpCost: 25,
+        levels: [
+          { damage: 30, range: 1.5, attackSpeed: 800, cost: 0, hp: 180, maxHp: 180 },
+          { damage: 50, range: 1.8, attackSpeed: 700, cost: 80, hp: 250, maxHp: 250 },
+          { damage: 80, range: 2.0, attackSpeed: 600, cost: 150, hp: 350, maxHp: 350 }
+        ],
+        effect: 'damage'
+      },
+      sniper: {
+        name: '狙撃',
+        icon: '🎯',
+        color: '#4ecdc4',
+        mpCost: 40,
+        levels: [
+          { damage: 100, range: 2, attackSpeed: 1500, cost: 0, hp: 150, maxHp: 150 },
+          { damage: 180, range: 2.5, attackSpeed: 1300, cost: 100, hp: 220, maxHp: 220 },
+          { damage: 300, range: 3, attackSpeed: 1100, cost: 200, hp: 300, maxHp: 300 }
+        ],
+        effect: 'damage'
+      },
+      slow: {
+        name: '減速',
+        icon: '❄️',
+        color: '#95e1d3',
+        mpCost: 15,
+        levels: [
+          { damage: 0, range: 1.5, attackSpeed: 0, cost: 0, slowAmount: 0.5, hp: 120, maxHp: 120 },
+          { damage: 0, range: 2.0, attackSpeed: 0, cost: 60, slowAmount: 0.3, hp: 180, maxHp: 180 },
+          { damage: 0, range: 2.5, attackSpeed: 0, cost: 120, slowAmount: 0.2, hp: 240, maxHp: 240 }
+        ],
+        effect: 'slow'
+      }
+    };
+
+    // ユニット定義
+    const UNIT_TYPES = {
+      soldier: {
+        name: '剣士',
+        icon: '⚔️',
+        color: '#4caf50',
+        hp: 80,
+        damage: 15,
+        speed: 1.5,
+        range: 25,
+        attackSpeed: 1000,
+        cost: 30,
+        castleAttack: 5
+      },
+      archer: {
+        name: '弓兵',
+        icon: '🏹',
+        color: '#2196f3',
+        hp: 50,
+        damage: 30,
+        speed: 1.2,
+        range: 80,
+        attackSpeed: 1500,
+        cost: 50,
+        castleAttack: 10
+      }
+    };
+
+    // ========================================
+    // ゲーム状態
+    // ========================================
+    const game = {
+      phase: 'placement',
+      level: 1,
+      money: START_MONEY,
+      mp: MAX_MP,
+      playerCastleHp: 200,
+      enemyCastleHp: 150,
+      towers: [],
+      playerUnits: [],
+      enemyUnits: [],
+      selectedTower: null,
+      gameOver: false,
+      enemySpawnTimer: 0,
+      nextWaveComposition: null,
+      selectedTowerForUpgrade: null,
+      rushMode: false,
+      rushTimer: 0,
+      rushCheckTimer: 0,
+      rushDuration: 0
+    };
+
+    // ========================================
+    // Canvas
+    // ========================================
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+
+    // ========================================
+    // Wave構成生成
+    // ========================================
+    function generateWaveComposition(level) {
+      const compositions = [
+        // Level 1: 高難易度
+        { fast: 15, tank: 6, swarm: 20, ranged: 8 },
+        // Level 2: 超高難易度
+        { fast: 20, tank: 8, swarm: 28, ranged: 12 },
+        // Level 3: 最高難易度
+        { fast: 25, tank: 10, swarm: 35, ranged: 15 }
+      ];
+
+      const index = Math.min(level - 1, compositions.length - 1);
+      return compositions[index];
+    }
+
+    // ========================================
+    // Wave予告表示更新
+    // ========================================
+    function updateWavePreview() {
+      if (game.phase !== 'battle') return;
+
+      const preview = document.getElementById('wave-preview');
+      const content = document.getElementById('wave-preview-content');
+
+      if (!game.nextWaveComposition) {
+        preview.style.display = 'none';
+        return;
+      }
+
+      preview.style.display = 'block';
+
+      let html = '';
+      for (const [type, count] of Object.entries(game.nextWaveComposition)) {
+        if (count > 0) {
+          const enemy = ENEMY_TYPES[type];
+          html += `<span class="enemy-type">${enemy.icon} ${enemy.name} x${count}</span>`;
+        }
+      }
+
+      content.innerHTML = html;
+    }
+
+    // ========================================
+    // グリッド描画
+    // ========================================
+    function drawGrid() {
+      ctx.strokeStyle = '#444';
+      ctx.lineWidth = 1;
+
+      for (let i = 0; i <= GRID_SIZE; i++) {
+        ctx.beginPath();
+        ctx.moveTo(i * CELL_SIZE, 0);
+        ctx.lineTo(i * CELL_SIZE, CANVAS_HEIGHT);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(0, i * CELL_SIZE);
+        ctx.lineTo(CANVAS_WIDTH, i * CELL_SIZE);
+        ctx.stroke();
+      }
+
+      ctx.fillStyle = 'rgba(76, 175, 80, 0.1)';
+      ctx.fillRect(0, 0, CELL_SIZE * 4, CANVAS_HEIGHT);
+
+      ctx.fillStyle = 'rgba(244, 67, 54, 0.1)';
+      ctx.fillRect(CELL_SIZE * 6, 0, CELL_SIZE * 4, CANVAS_HEIGHT);
+
+      // 味方の城
+      const playerCastleX = CELL_SIZE * 1;
+      const playerCastleY = CANVAS_HEIGHT / 2;
+      const castleSize = 80;
+      ctx.fillStyle = '#4caf50';
+      ctx.fillRect(playerCastleX - castleSize / 2, playerCastleY - castleSize / 2, castleSize, castleSize);
+      ctx.fillStyle = 'white';
+      ctx.font = 'bold 40px Arial';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('🏰', playerCastleX, playerCastleY);
+
+      // HPゲージ（城の箱と同じ幅）
+      ctx.fillStyle = '#333';
+      ctx.fillRect(playerCastleX - 40, playerCastleY + 50, 80, 8);
+      const playerHpPercent = game.playerCastleHp / getPlayerMaxHp();
+      ctx.fillStyle = '#4caf50';
+      ctx.fillRect(playerCastleX - 40, playerCastleY + 50, 80 * playerHpPercent, 8);
+
+      // 敵の城
+      const enemyCastleX = CANVAS_WIDTH - CELL_SIZE * 1;
+      const enemyCastleY = CANVAS_HEIGHT / 2;
+      ctx.fillStyle = '#f44336';
+      ctx.fillRect(enemyCastleX - castleSize / 2, enemyCastleY - castleSize / 2, castleSize, castleSize);
+      ctx.fillStyle = 'white';
+      ctx.fillText('👹', enemyCastleX, enemyCastleY);
+
+      // HPゲージ（城の箱と同じ幅）
+      ctx.fillStyle = '#333';
+      ctx.fillRect(enemyCastleX - 40, enemyCastleY + 50, 80, 8);
+      const enemyHpPercent = game.enemyCastleHp / getEnemyMaxHp();
+      ctx.fillStyle = '#f44336';
+      ctx.fillRect(enemyCastleX - 40, enemyCastleY + 50, 80 * enemyHpPercent, 8);
+    }
+
+    // ========================================
+    // タワー描画
+    // ========================================
+    function drawTowers() {
+      game.towers.forEach(tower => {
+        const typeDef = TOWER_TYPES[tower.type];
+        const level = typeDef.levels[tower.level];
+        const x = tower.gridX * CELL_SIZE + CELL_SIZE / 2;
+        const y = tower.gridY * CELL_SIZE + CELL_SIZE / 2;
+
+        // 範囲表示
+        ctx.fillStyle = typeDef.color + '20';
+        ctx.beginPath();
+        ctx.arc(x, y, level.range * CELL_SIZE, 0, Math.PI * 2);
+        ctx.fill();
+
+        // 選択表示
+        if (game.selectedTowerForUpgrade === tower) {
+          ctx.strokeStyle = '#ffeb3b';
+          ctx.lineWidth = 3;
+          ctx.strokeRect(
+            tower.gridX * CELL_SIZE + 5,
+            tower.gridY * CELL_SIZE + 5,
+            CELL_SIZE - 10,
+            CELL_SIZE - 10
+          );
+        }
+
+        // タワー本体（HPが0なら半透明）
+        ctx.fillStyle = tower.hp > 0 ? typeDef.color : typeDef.color + '60';
+        ctx.fillRect(x - 30, y - 30, 60, 60);
+
+        ctx.font = '30px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(typeDef.icon, x, y);
+
+        // レベル表示
+        ctx.fillStyle = 'white';
+        ctx.font = 'bold 14px Arial';
+        ctx.fillText(`Lv${tower.level + 1}`, x, y - 45);
+
+        // HP表示
+        const hpBarWidth = 60;
+        ctx.fillStyle = '#333';
+        ctx.fillRect(x - hpBarWidth / 2, y + 35, hpBarWidth, 4);
+        const hpPercent = tower.hp / tower.maxHp;
+        ctx.fillStyle = hpPercent > 0.5 ? '#4caf50' : hpPercent > 0.25 ? '#ff9800' : '#f44336';
+        ctx.fillRect(x - hpBarWidth / 2, y + 35, hpBarWidth * hpPercent, 4);
+
+        // 攻撃エフェクト
+        if (tower.lastAttack && Date.now() - tower.lastAttack < 200) {
+          ctx.strokeStyle = typeDef.color;
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.arc(x, y, level.range * CELL_SIZE * 0.8, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+      });
+    }
+
+    // ========================================
+    // ユニット描画
+    // ========================================
+    function drawUnits() {
+      [...game.playerUnits, ...game.enemyUnits].forEach(unit => {
+        const isPlayer = unit.isPlayer;
+
+        if (unit.inCombat) {
+          ctx.strokeStyle = '#ff9800';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(unit.x, unit.y, 20, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+
+        let color, icon;
+        if (isPlayer) {
+          const type = UNIT_TYPES[unit.type];
+          color = type.color;
+          icon = type.icon;
+        } else {
+          const type = ENEMY_TYPES[unit.enemyType];
+          color = type.color;
+          icon = type.icon;
+        }
+
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(unit.x, unit.y, 15, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.font = '20px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(icon, unit.x, unit.y);
+
+        const hpY = isPlayer ? unit.y + 22 : unit.y - 28;
+        const unitHpBarWidth = 30; // ユニットの円の直径と同じ
+        ctx.fillStyle = '#333';
+        ctx.fillRect(unit.x - unitHpBarWidth / 2, hpY, unitHpBarWidth, 4);
+
+        const hpPercent = unit.hp / unit.maxHp;
+        ctx.fillStyle = hpPercent > 0.5 ? '#4caf50' : hpPercent > 0.25 ? '#ff9800' : '#f44336';
+        ctx.fillRect(unit.x - unitHpBarWidth / 2, hpY, unitHpBarWidth * hpPercent, 4);
+      });
+    }
+
+    // ========================================
+    // マウスホバー
+    // ========================================
+    let mousePos = { x: 0, y: 0 };
+
+    function drawPlacementPreview() {
+      if (game.phase !== 'placement' || !game.selectedTower) return;
+
+      const gridX = Math.floor(mousePos.x / CELL_SIZE);
+      const gridY = Math.floor(mousePos.y / CELL_SIZE);
+
+      if (gridX >= 4 || gridX < 1) return;
+
+      const typeDef = TOWER_TYPES[game.selectedTower];
+      const level = typeDef.levels[0];
+      const x = gridX * CELL_SIZE + CELL_SIZE / 2;
+      const y = gridY * CELL_SIZE + CELL_SIZE / 2;
+
+      ctx.fillStyle = typeDef.color + '40';
+      ctx.fillRect(gridX * CELL_SIZE, gridY * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+
+      ctx.fillStyle = typeDef.color + '80';
+      ctx.fillRect(x - 30, y - 30, 60, 60);
+
+      ctx.font = '30px Arial';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(typeDef.icon, x, y);
+    }
+
+    // ========================================
+    // 描画メイン
+    // ========================================
+    function draw() {
+      ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+      drawGrid();
+      drawTowers();
+      drawUnits();
+      drawPlacementPreview();
+    }
+
+    // ========================================
+    // ユニット移動
+    // ========================================
+    function moveUnits(deltaTime) {
+      [...game.playerUnits, ...game.enemyUnits].forEach(unit => {
+        if (unit.inCombat) return;
+        if (unit.attackingCastle) return;
+
+        const speed = unit.speed * deltaTime;
+
+        if (unit.isPlayer) {
+          unit.x += speed;
+        } else {
+          unit.x -= speed;
+        }
+      });
+    }
+
+    // ========================================
+    // ユニット戦闘
+    // ========================================
+    function unitCombat() {
+      const now = Date.now();
+
+      [...game.playerUnits, ...game.enemyUnits].forEach(unit => {
+        if (unit.attackingCastle) return;
+
+        const enemies = unit.isPlayer ? game.enemyUnits : game.playerUnits;
+
+        const nearbyEnemies = enemies.filter(enemy => {
+          const dx = enemy.x - unit.x;
+          const dy = enemy.y - unit.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          return dist <= unit.range;
+        });
+
+        if (nearbyEnemies.length > 0) {
+          unit.inCombat = true;
+          const target = nearbyEnemies[0];
+          target.inCombat = true;
+
+          if (!unit.lastAttackTime || now - unit.lastAttackTime > unit.attackSpeed) {
+            target.hp -= unit.damage;
+            unit.lastAttackTime = now;
+          }
+        } else {
+          unit.inCombat = false;
+        }
+      });
+
+      game.playerUnits = game.playerUnits.filter(u => {
+        if (u.hp <= 0) {
+          game.money += 10;
+          updateUI();
+          return false;
+        }
+        return true;
+      });
+
+      game.enemyUnits = game.enemyUnits.filter(u => {
+        if (u.hp <= 0) {
+          const enemyType = ENEMY_TYPES[u.enemyType];
+          game.money += enemyType.reward;
+          updateUI();
+          return false;
+        }
+        return true;
+      });
+    }
+
+    // ========================================
+    // 城攻撃
+    // ========================================
+    function castleAttack() {
+      const now = Date.now();
+
+      game.playerUnits.forEach(unit => {
+        const enemyCastleX = CANVAS_WIDTH - CELL_SIZE * 1;
+        const dist = Math.abs(unit.x - enemyCastleX);
+
+        if (dist < 100 && !unit.inCombat) {
+          unit.attackingCastle = true;
+
+          if (!unit.lastCastleAttack || now - unit.lastCastleAttack > 1000) {
+            game.enemyCastleHp -= unit.castleAttack;
+            unit.lastCastleAttack = now;
+            updateUI();
+            checkGameOver();
+          }
+        }
+      });
+
+      game.enemyUnits.forEach(unit => {
+        const playerCastleX = CELL_SIZE * 1;
+        const dist = Math.abs(unit.x - playerCastleX);
+
+        if (dist < 100 && !unit.inCombat) {
+          unit.attackingCastle = true;
+
+          if (!unit.lastCastleAttack || now - unit.lastCastleAttack > 1000) {
+            game.playerCastleHp -= unit.castleAttack;
+            unit.lastCastleAttack = now;
+            updateUI();
+            checkGameOver();
+          }
+        }
+      });
+    }
+
+    // ========================================
+    // タワー攻撃
+    // ========================================
+    function towerAttack() {
+      const now = Date.now();
+
+      game.towers.forEach(tower => {
+        if (tower.hp <= 0) return; // HPが0なら攻撃しない
+
+        const typeDef = TOWER_TYPES[tower.type];
+        const level = typeDef.levels[tower.level];
+
+        if (typeDef.effect !== 'damage') return;
+        if (tower.lastAttackTime && now - tower.lastAttackTime < level.attackSpeed) return;
+
+        const x = tower.gridX * CELL_SIZE + CELL_SIZE / 2;
+        const y = tower.gridY * CELL_SIZE + CELL_SIZE / 2;
+
+        const enemiesInRange = game.enemyUnits.filter(enemy => {
+          const dx = enemy.x - x;
+          const dy = enemy.y - y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          return dist <= level.range * CELL_SIZE;
+        });
+
+        if (enemiesInRange.length === 0) return;
+
+        tower.lastAttackTime = now;
+        tower.lastAttack = now;
+
+        if (tower.type === 'cannon') {
+          enemiesInRange.forEach(enemy => {
+            enemy.hp -= level.damage;
+          });
+        } else if (tower.type === 'sniper') {
+          enemiesInRange[0].hp -= level.damage;
+        }
+      });
+    }
+
+    // ========================================
+    // 敵がタワーを攻撃
+    // ========================================
+    function enemyAttackTowers() {
+      const now = Date.now();
+
+      game.enemyUnits.forEach(enemy => {
+        if (enemy.inCombat || enemy.attackingCastle) return;
+
+        game.towers.forEach(tower => {
+          if (tower.hp <= 0) return;
+
+          const towerX = tower.gridX * CELL_SIZE + CELL_SIZE / 2;
+          const towerY = tower.gridY * CELL_SIZE + CELL_SIZE / 2;
+
+          const dx = towerX - enemy.x;
+          const dy = towerY - enemy.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+
+          if (dist <= 50) {
+            if (!enemy.lastTowerAttack || now - enemy.lastTowerAttack > 1000) {
+              tower.hp -= 5;
+              enemy.lastTowerAttack = now;
+            }
+          }
+        });
+      });
+    }
+
+    // ========================================
+    // ラッシュモード管理
+    // ========================================
+    function manageRushMode(deltaTime) {
+      game.rushCheckTimer += deltaTime;
+
+      // 10秒ごとにラッシュモードの判定
+      if (game.rushCheckTimer >= 10000 && !game.rushMode) {
+        game.rushCheckTimer = 0;
+
+        // 50%の確率でラッシュモード発動
+        if (Math.random() < 0.5) {
+          game.rushMode = true;
+          game.rushDuration = 0;
+          document.getElementById('rush-notification').classList.add('show');
+        }
+      }
+
+      // ラッシュモード中のタイマー
+      if (game.rushMode) {
+        game.rushDuration += deltaTime;
+
+        // 3秒経過したらラッシュモード終了
+        if (game.rushDuration >= 3000) {
+          game.rushMode = false;
+          game.rushDuration = 0;
+          document.getElementById('rush-notification').classList.remove('show');
+        }
+      }
+    }
+
+    // ========================================
+    // 敵出撃
+    // ========================================
+    function enemySpawn(deltaTime) {
+      game.enemySpawnTimer += deltaTime;
+
+      // ラッシュモード中はスポーン間隔を大幅に短縮
+      let spawnInterval = Math.max(800, 1500 - game.level * 80);
+      if (game.rushMode) {
+        spawnInterval = spawnInterval / 5; // 5倍速
+      }
+
+      if (game.enemySpawnTimer >= spawnInterval) {
+        game.enemySpawnTimer = 0;
+
+        if (!game.nextWaveComposition) {
+          game.nextWaveComposition = generateWaveComposition(game.level);
+          updateWavePreview();
+        }
+
+        // 次に出撃する敵タイプを決定
+        let selectedType = null;
+        for (const [type, count] of Object.entries(game.nextWaveComposition)) {
+          if (count > 0) {
+            selectedType = type;
+            game.nextWaveComposition[type]--;
+            break;
+          }
+        }
+
+        if (!selectedType) {
+          // 全て出撃済み、次Wave準備
+          game.nextWaveComposition = generateWaveComposition(game.level);
+          updateWavePreview();
+          return;
+        }
+
+        const enemyDef = ENEMY_TYPES[selectedType];
+        const hpMultiplier = 1 + game.level * 0.1;
+        const damageMultiplier = 1 + game.level * 0.08;
+
+        game.enemyUnits.push({
+          x: CANVAS_WIDTH - CELL_SIZE * 1,
+          y: CANVAS_HEIGHT / 2 + (Math.random() - 0.5) * 200,
+          hp: enemyDef.hp * hpMultiplier,
+          maxHp: enemyDef.hp * hpMultiplier,
+          speed: enemyDef.speed,
+          damage: enemyDef.damage * damageMultiplier,
+          range: enemyDef.range || 25,
+          attackSpeed: 1000,
+          castleAttack: enemyDef.castleAttack,
+          enemyType: selectedType,
+          isPlayer: false,
+          inCombat: false,
+          attackingCastle: false,
+          lastAttackTime: 0,
+          lastCastleAttack: 0
+        });
+      }
+    }
+
+    // ========================================
+    // 兵士出撃
+    // ========================================
+    function spawnUnit(unitType) {
+      const type = UNIT_TYPES[unitType];
+
+      if (game.money < type.cost) return;
+
+      game.money -= type.cost;
+
+      game.playerUnits.push({
+        x: CELL_SIZE * 1,
+        y: CANVAS_HEIGHT / 2 + (Math.random() - 0.5) * 200,
+        hp: type.hp,
+        maxHp: type.hp,
+        speed: type.speed,
+        damage: type.damage,
+        range: type.range,
+        attackSpeed: type.attackSpeed,
+        castleAttack: type.castleAttack,
+        type: unitType,
+        isPlayer: true,
+        inCombat: false,
+        attackingCastle: false,
+        lastAttackTime: 0,
+        lastCastleAttack: 0
+      });
+
+      updateUI();
+    }
+
+    // ========================================
+    // タワーアップグレード
+    // ========================================
+    function upgradeTower(tower) {
+      const typeDef = TOWER_TYPES[tower.type];
+
+      if (tower.level >= typeDef.levels.length - 1) {
+        return; // 最大レベル
+      }
+
+      const nextLevel = typeDef.levels[tower.level + 1];
+
+      if (game.money < nextLevel.cost) {
+        return; // お金不足
+      }
+
+      game.money -= nextLevel.cost;
+      tower.level++;
+      tower.hp = nextLevel.hp;
+      tower.maxHp = nextLevel.maxHp;
+      game.selectedTowerForUpgrade = null;
+
+      updateUI();
+    }
+
+    // ========================================
+    // レベル計算
+    // ========================================
+    function getPlayerMaxHp() {
+      return 200 + game.level * 50;
+    }
+
+    function getEnemyMaxHp() {
+      return 150 + game.level * 40;
+    }
+
+    // ========================================
+    // ゲームループ
+    // ========================================
+    let lastTime = Date.now();
+
+    function gameLoop() {
+      const now = Date.now();
+      const deltaTimeMs = now - lastTime;
+      const deltaTime = deltaTimeMs / 16.67;
+      lastTime = now;
+
+      if (game.phase === 'battle' && !game.gameOver) {
+        moveUnits(deltaTime);
+        unitCombat();
+        castleAttack();
+        towerAttack();
+        enemyAttackTowers();
+        enemySpawn(deltaTimeMs);
+        manageRushMode(deltaTimeMs);
+      }
+
+      draw();
+      requestAnimationFrame(gameLoop);
+    }
+
+    // ========================================
+    // UI更新
+    // ========================================
+    function updateUI() {
+      document.getElementById('level').textContent = `${game.level} / 3`;
+      document.getElementById('player-hp').textContent = Math.max(0, Math.floor(game.playerCastleHp));
+      document.getElementById('enemy-hp').textContent = Math.max(0, Math.floor(game.enemyCastleHp));
+      document.getElementById('money').textContent = game.money;
+      document.getElementById('money-header').textContent = game.money;
+      document.getElementById('remaining-mp').textContent = game.mp;
+
+      const phaseIndicator = document.getElementById('phase-indicator');
+      if (game.phase === 'placement') {
+        phaseIndicator.textContent = '配置フェーズ';
+        phaseIndicator.classList.remove('battle');
+      } else {
+        phaseIndicator.textContent = '戦闘フェーズ';
+        phaseIndicator.classList.add('battle');
+      }
+
+      document.querySelectorAll('.tower-btn').forEach(btn => {
+        const towerType = btn.dataset.tower;
+        const mpCost = TOWER_TYPES[towerType].mpCost;
+        btn.disabled = game.phase !== 'placement' || game.mp < mpCost;
+      });
+
+      const startBtn = document.getElementById('start-btn');
+      startBtn.disabled = game.phase !== 'placement';
+
+      document.getElementById('soldier-btn').disabled = game.money < UNIT_TYPES.soldier.cost;
+      document.getElementById('archer-btn').disabled = game.money < UNIT_TYPES.archer.cost;
+
+      updateWavePreview();
+    }
+
+    // ========================================
+    // ゲームオーバー
+    // ========================================
+    function checkGameOver() {
+      if (game.enemyCastleHp <= 0) {
+        game.gameOver = true;
+        showVictory();
+      } else if (game.playerCastleHp <= 0) {
+        game.gameOver = true;
+        showDefeat();
+      }
+    }
+
+    function showVictory() {
+      const modal = document.getElementById('modal');
+      const content = document.getElementById('modal-content');
+      content.classList.remove('defeat');
+      content.classList.add('victory');
+      document.getElementById('modal-title').textContent = '🎉 Victory!';
+      document.getElementById('modal-message').textContent = `Level ${game.level} クリア！`;
+      document.getElementById('next-level-btn').style.display = 'inline-block';
+      modal.classList.add('show');
+    }
+
+    function showDefeat() {
+      const modal = document.getElementById('modal');
+      const content = document.getElementById('modal-content');
+      content.classList.remove('victory');
+      content.classList.add('defeat');
+      document.getElementById('modal-title').textContent = '💀 Defeat...';
+      document.getElementById('modal-message').textContent = '城が破壊されました';
+      document.getElementById('next-level-btn').style.display = 'none';
+      modal.classList.add('show');
+    }
+
+    // ========================================
+    // 次のレベル
+    // ========================================
+    function nextLevel() {
+      game.level++;
+      game.phase = 'placement';
+      game.money = START_MONEY + game.level * 50;
+      game.mp = MAX_MP;
+      game.playerCastleHp = getPlayerMaxHp();
+      game.enemyCastleHp = getEnemyMaxHp();
+      game.towers = [];
+      game.playerUnits = [];
+      game.enemyUnits = [];
+      game.selectedTower = null;
+      game.gameOver = false;
+      game.enemySpawnTimer = 0;
+      game.nextWaveComposition = null;
+      game.selectedTowerForUpgrade = null;
+
+      document.getElementById('modal').classList.remove('show');
+      document.getElementById('wave-preview').style.display = 'none';
+      updateUI();
+    }
+
+    // ========================================
+    // イベントリスナー
+    // ========================================
+
+    document.querySelectorAll('.tower-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const towerType = btn.dataset.tower;
+        const mpCost = TOWER_TYPES[towerType].mpCost;
+
+        if (game.phase !== 'placement' || game.mp < mpCost) return;
+
+        document.querySelectorAll('.tower-btn').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+        game.selectedTower = towerType;
+      });
+    });
+
+    document.getElementById('start-btn').addEventListener('click', () => {
+      game.phase = 'battle';
+      game.nextWaveComposition = generateWaveComposition(game.level);
+      document.getElementById('unit-section').style.display = 'block';
+      updateUI();
+    });
+
+    document.getElementById('soldier-btn').addEventListener('click', () => {
+      spawnUnit('soldier');
+    });
+
+    document.getElementById('archer-btn').addEventListener('click', () => {
+      spawnUnit('archer');
+    });
+
+    document.getElementById('next-level-btn').addEventListener('click', () => {
+      nextLevel();
+    });
+
+    canvas.addEventListener('mousemove', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      mousePos.x = e.clientX - rect.left;
+      mousePos.y = e.clientY - rect.top;
+    });
+
+    canvas.addEventListener('click', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+
+      const gridX = Math.floor(x / CELL_SIZE);
+      const gridY = Math.floor(y / CELL_SIZE);
+
+      // 戦闘中：タワーをクリックでアップグレード
+      if (game.phase === 'battle') {
+        const clickedTower = game.towers.find(t => t.gridX === gridX && t.gridY === gridY);
+
+        if (clickedTower) {
+          if (game.selectedTowerForUpgrade === clickedTower) {
+            // 2回目クリック：アップグレード実行
+            upgradeTower(clickedTower);
+          } else {
+            // 1回目クリック：選択
+            game.selectedTowerForUpgrade = clickedTower;
+          }
+        } else {
+          game.selectedTowerForUpgrade = null;
+        }
+        return;
+      }
+
+      // 配置フェーズ：タワー配置
+      if (game.phase !== 'placement' || !game.selectedTower) return;
+
+      if (gridX < 1 || gridX >= 4) return;
+
+      const alreadyPlaced = game.towers.some(t => t.gridX === gridX && t.gridY === gridY);
+      if (alreadyPlaced) return;
+
+      const towerTypeDef = TOWER_TYPES[game.selectedTower];
+      const mpCost = towerTypeDef.mpCost;
+
+      // MPチェック
+      if (game.mp < mpCost) return;
+
+      const levelStats = towerTypeDef.levels[0];
+
+      game.towers.push({
+        gridX: gridX,
+        gridY: gridY,
+        type: game.selectedTower,
+        level: 0,
+        lastAttackTime: 0,
+        lastAttack: 0,
+        hp: levelStats.hp,
+        maxHp: levelStats.maxHp
+      });
+
+      game.mp -= mpCost;
+      game.selectedTower = null;
+      document.querySelectorAll('.tower-btn').forEach(b => b.classList.remove('selected'));
+      updateUI();
+    });
+
+    // ========================================
+    // ゲーム開始
+    // ========================================
+    updateUI();
+    gameLoop();
+  </script>
+</body>
+</html>
